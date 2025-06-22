@@ -1,0 +1,94 @@
+---
+title: "Bioaccumulation of Microplastic Analysis"
+author: "Rue Ekpemiro"
+output: html_document
+---
+
+Statistical Analysis Replication of
+
+"Bioacculmulation of micro plastics in decedent human brains"
+
+MNP = Micro and Nano plastics
+
+Study Claims
+1. The presence of MNPs in brain, kidney, and liver primarily consists of polyethylene (only visualization done).
+2. Brain tissue contains a significantly higher concentration of polyethylene when compared liver and kidney.
+3. Plastic concentration in brain tissue not influenced by age, sex, race/ethnicity, or cause of death.
+4. Time of death is a significant factor in increasing MNP concentrations in liver and brain (2024 organ samples had higher MNP concentration vs. 2016 organ samples)
+5. Greater concentrations of MNPs in brain tissue correlated with dementia diagnosis.
+
+Goal: Understanding the potential health consequences of plastics in human tissues, particularly in the brain. First by seeing if there has been an increase in MNP concentrations in organ tissue across age, sex, DOD, TOD, etc.
+
+Check "Total" MNP in dataset. (Values of Y)
+```{r}
+rowSums(all.organs[7:18]) #Total MNP concentration for each observation
+```
+
+"Normality Assessment of 2016 and 2024 Decedent Data"
+Shapiro-Wilks test for normality and log normality
+
+```{r}
+library(tidyverse)
+all.organs <-  read.csv("C:/Users/oekpe/OneDrive/Desktop/Microplastic Study/All_Organs_total_spreadsheet_NatMed_for_Dryad.csv")
+
+organs_2016 <- all.organs |>
+  filter(DOD == 2016)
+
+organs_2024 <- all.organs |>
+  filter(DOD == 2024)
+
+#organ_by_type_2016 <- organs_2016 |>
+  #group_split(Organ)
+
+#Filtering by year and organ type
+
+liver_2016 <- organs_2016 |>
+  filter(Organ == 'Liver')
+kidney_2016 <- organs_2016 |>
+  filter(Organ == 'Kidney')
+brain_2016 <- organs_2016 |>
+  filter(Organ == 'Brain')
+
+liver_2024 <- organs_2024 |>
+  filter(Organ == 'Liver')
+kidney_2024 <- organs_2024 |>
+  filter(Organ == 'Kidney')
+brain_2024 <- organs_2024 |>
+  filter(Organ == 'Brain')
+  
+```
+
+"Normality test for untransformed total plastic concentrations"
+
+```{r}
+##
+liver_2016_model <- lm(Total ~ Age, data = liver_2016)
+shapiro.test(liver_2016_model$residuals)
+kidney_2016_model <- lm(Total ~ Age, data = kidney_2016)
+shapiro.test(kidney_2016_model$residuals)
+brain_2016_model <- lm(Total ~ Age, data = brain_2016)
+shapiro.test(brain_2016_model$residuals)
+```
+
+"Two-Way ANOVA: $X_1$ = Organ, $X_2$ = Date of Death (DOD), and Y = $Total$"
+
+```{r}
+the.model <- lm(Total~Organ+DOD, data = all.organs)
+anova(the.model)
+```
+Post-hoc Comparison
+
+
+"Multiple Regression Modeling for Brain Microplastics Content"
+
+Regression Analysis - Full Model 
+```{r}
+
+full.model <- lm(Total~Organ+Age+DOD+COD,all.organs)
+full.model
+
+summary(full.model)
+```
+
+
+
