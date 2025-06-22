@@ -1,0 +1,148 @@
+---
+title: "sta 141a final"
+output: pdf_document
+---
+
+```{r}
+library(dplyr)
+tiktok <- read.csv("C:/Users/oekpe/OneDrive/Desktop/STA 141A/dataset/tiktok.csv")
+new.data <- tiktok %>%
+  distinct(track_id, .keep_all = TRUE)
+```
+
+scatterplots
+```{r}
+library(patchwork)
+library(ggplot2)
+a <- ggplot(new.data,aes(danceability,popularity)) + geom_point(shape = 1) + xlab("Danceability") + ylab("Popularity score")
+b <- ggplot(new.data,aes(duration_mins,popularity)) + geom_point(shape = 1) + xlab("Duration (min)") + ylab("Popularity score")
+c <- ggplot(new.data,aes(energy,popularity)) + geom_point(shape = 1) + xlab("Energy") + ylab("Popularity score")
+d <- ggplot(new.data,aes(loudness,popularity)) + geom_point(shape = 1) + xlab("Loudness") + ylab("Popularity score")
+e <- ggplot(new.data,aes(speechiness,popularity)) + geom_point(shape = 1) + xlab("Speechiness") + ylab("Popularity score")
+f <-ggplot(new.data,aes(acousticness,popularity)) + geom_point(shape = 1) + xlab("Acousticness") + ylab("Popularity score")
+((a+b+c) / (d+e+f)) + 
+    plot_annotation(title = "Audio Features vs. Popularity")
+```
+The scatterplots dont't suggest a linear correlation between any audio feature and popularity.The majority of songs have a danceability score of over 0.50, duration of under 5 minutes, loudness of above -10, and speechiness of under 0.50. **units
+Though the songs share these featutures it doesn't appear to cause change in popularity score. The songs also vary in even spread across energy and acousticness scores, further suggesting no relationship between these predictors and popularity of a song on tiktok.
+```{r}
+
+g <- ggplot(new.data,aes(instrumentalness,popularity)) + geom_point(shape = 1) + xlab("Instrumentalness") + ylab("Popularity score")
+h <- ggplot(new.data,aes(liveness,popularity)) + geom_point(shape = 1) + xlab("Liveness") + ylab("Popularity score")
+i <- ggplot(new.data,aes(valence,popularity)) + geom_point(shape = 1) + xlab("Valence") + ylab("Popularity score")
+j <- ggplot(new.data,aes(tempo,popularity)) + geom_point(shape = 1) + xlab("Tempo") + ylab("Popularity score")
+k <- ggplot(new.data,aes(mode,popularity)) + geom_point(shape = 1) + xlab("Mode") + ylab("Popularity score")
+l <- ggplot(new.data,aes(key,popularity)) + geom_point(shape = 1) + xlab("Key") + ylab("Popularity score")
+((g+h+i) / (j+k+l)) + 
+    plot_annotation(title = "Audio Features vs. Popularity")
+```
+For this set of scatterplots, we can also see that there is no linear relationship suggested. For the features instrumentalness, valence, and tempo the spread of songs are even across the plots. Most songs cluster with a liveness score of less than 0.50. The mode and key plots show that popular songs have the full range of modes (0-1) and Keys (0-11) and don't appear to have an effect on song popularity.
+```{r}
+#Correlation Matrix
+num.data <- subset(new.data, select = -c(1,2,3,4,5,6,7,20,21,23))
+
+library(corrplot)
+datamatrix <- cor(num.data)
+corrplot(datamatrix,method = "number")
+```
+
+Full Model
+```{r}
+tt.model <- lm(popularity~danceability+energy+loudness+tempo+duration+key+speechiness+acousticness+instrumentalness+liveness+valence+mode,data=tiktok)
+summary(tt.model)
+
+library(broom)
+library(knitr)
+
+tt_tidy <- tidy(tt.model)
+kable(tt_tidy, digits = 3, caption = "Linear Model Summary: Popularity ~ Audio Features")
+```
+
+```{r}
+df$release_date <- as.Date(df$release_date)
+df$release_year <- year(df$release_date)
+df$release_month <- month(df$release_date, label=TRUE)
+df$release_weekday <- wday(df$release_date, label=TRUE)
+df$release_season <- case_when(
+  month(df$release_date) %in% c(12, 1, 2) ~ "Winter",
+  month(df$release_date) %in% c(3, 4, 5) ~ "Spring",
+  month(df$release_date) %in% c(6, 7, 8) ~ "Summer",
+  month(df$release_date) %in% c(9, 10, 11) ~ "Fall",
+  TRUE ~ NA_character_
+)
+
+# weekday
+ggplot(df, aes(x=release_weekday, fill=factor(popularity))) +
+  geom_bar(position="fill") +
+  labs(y="Proportion of Trending", title="Trending by Release Weekday") +
+  theme_minimal()
+
+# month
+ggplot(df, aes(x=release_month, fill=factor(popularity))) +
+  geom_bar(position="fill") +
+  labs(y="Proportion", x="Month", title="Trending Proportion by Release Month") +
+  theme_minimal()
+
+# season
+ggplot(df, aes(x=release_season, fill=factor(popularity))) +
+  geom_bar(position="fill") +
+  labs(y="Proportion", x="Season", title="Trending Proportion by Release Season") +
+  theme_minimal()
+
+# year
+ggplot(df, aes(x=release_year, fill=factor(popularity))) +
+  geom_bar(position="fill") +
+  labs(y="Proportion", x="Release Year", title="Trending Proportion by Release Year") +
+  theme_minimal()
+
+```
+
+ANOVA
+
+```{r}
+#anova for season, month, and weekday
+
+summary(aov(popularity ~ release_month, data = df))
+summary(aov(popularity ~ release_weekday, data = df))
+summary(aov(popularity ~ release_season, data = df))
+
+# Three-way ANOVA (weekday, season, and month)
+aov.model <- lm(popularity ~ release_weekday * release_season * release_month, data = df)
+anova(aov.model)
+summary(aov(popularity ~ release_weekday * release_season * release_month, data = df))
+
+kable(anova(aov.model), digits = 4, caption = "3-Way ANOVA Table")
+```
+There was a significant correlation found between release weekday, release month, release season and popularity. Given the very small p-values from our analysis we can reject the null for any reasonable alpha and conclude that there is a significant correlation found between release weekday, release month, release season and popularity. Thus, a the day, month, and season a song is released on TikTok effects its popularity score. A significant interaction was found between release weekday and season as well as release weekday and season.
+
+```{r}
+#simple interaction plots
+interaction.plot(df$release_weekday, df$release_month, df$popularity)
+interaction.plot(df$release_weekday, df$release_season, df$popularity)
+```
+
+```{r}
+#clean 3-Way Interaction Plot
+
+library(ggplot2)
+library(dplyr)
+
+df_clean <- df %>%
+  filter(!is.na(release_season), release_season != "NA", release_season != "") %>%
+  droplevels()
+
+ggplot(df_clean, aes(x = release_weekday, y = popularity, color = release_month, group = release_month)) +
+  stat_summary(fun = mean, geom = "line", size = 1.2) +
+  facet_wrap(~ release_season) +
+  labs(
+    x = "Release Weekday",
+    y = "Average Popularity Score",
+    color = "Release Month",
+    title = "Interaction Plot: Weekday × Month × Season"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```

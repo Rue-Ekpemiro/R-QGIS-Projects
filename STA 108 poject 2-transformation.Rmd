@@ -1,0 +1,182 @@
+---
+title: "Transformation of Variables"
+author: "Rue Ekpemiro"
+date: "2025-05-24"
+output: pdf_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = F,        
+  message = FALSE,    # hide package messages
+  warning = FALSE,    # hide warnings
+  results = 'hide'    # hide printed output from code
+)
+```
+
+Topic I: Transformation of Variables
+
+1. Original Dataset
+
+$\alpha=0.05$
+
+```{r}
+Transform2 <- read.csv("C:/Users/oekpe/OneDrive/Desktop/STA 108/projects/Transform2.csv")
+
+the.model <- lm(Y~X,Transform2)
+summary(the.model)
+```
+
+```{r}
+#QQ Plot
+qqnorm(the.model$residuals)
+qqline(the.model$residuals, col='red')
+```
+```{r}
+hist(the.model$residuals, main = "Residuals", xlab = "ei",pch = 19,font = 2,font.lab = 2,cex = 1.25)
+```
+
+
+```{r}
+#Shapiro-Wilks
+ei = the.model$residuals
+SWtest = shapiro.test(ei)
+SWtest
+```
+We reject the null and conclude that the residuals do not follow a normal distribution.
+
+```{r}
+library(ggplot2)
+#ei vs fitted values
+Transform2$ei = the.model$residuals
+Transform2$yhat = the.model$fitted.values
+
+qplot(yhat, ei, data = Transform2) + ggtitle("Errors vs. Fitted Values") + xlab("Fitted Values") +
+ylab("Errors") + geom_hline(yintercept = 0,col = "purple")
+```
+```{r}
+#FK Test
+new.Group = rep("Lower",nrow(Transform2)) #Creates a vector that repeats "Lower" n times
+new.Group[Transform2$Y > median(Transform2$Y)] = "Upper" #Changing the appropriate values to "Upper"
+new.Group = as.factor(new.Group) #Changes it to a factor, which R recognizes as a grouping variable.
+Transform2$new.Group = new.Group
+new.FKtest= fligner.test(Transform2$ei, Transform2$new.Group)
+new.FKtest
+```
+We reject the null and conclude that the errors do not have constant variance.
+
+2. No Outliers Dataset
+
+```{r}
+#Outlier Detection and Removal
+alpha = 0.05
+n = nrow(Transform2)
+t.cutoff= qt(1-alpha/(2), n-2)
+t.cutoff
+
+rij = rstandard(the.model)
+CO.rij = which(abs(rij) > t.cutoff)
+CO.rij
+
+new.data <- Transform2[-CO.rij,]
+new.model <- lm(Y~X,new.data)
+```
+t-cutoff: 1.981567
+4 rows detected: 34, 47, 104, 112
+
+```{r}
+#Shapiro-Wilks
+new.data$yhat = new.model$fitted.values
+
+n.ei = new.model$residuals
+n.SWtest = shapiro.test(n.ei)
+n.SWtest
+```
+We fail to reject the null and conclude that errors are normal.
+
+```{r}
+#FK test
+new.data$n.ei = new.model$residuals
+new.Group = rep("Lower",nrow(new.data)) #Creates a vector that repeats "Lower" n times
+new.Group[new.data$Y > median(new.data$Y)] = "Upper" #Changing the appropriate values to "Upper"
+new.Group = as.factor(new.Group) #Changes it to a factor, which R recognizes as a grouping variable.
+new.data$new.Group = new.Group
+new.FKtest= fligner.test(new.data$n.ei, new.data$new.Group)
+new.FKtest
+```
+We fail to reject null and conclude that the errors have constant variance.
+
+3. Transformed data
+
+```{r}
+#Transformation of Y
+library(MASS)
+BC = boxcox(the.model,lambda = seq(-6,6,0.1),plotit = FALSE)
+lambda = BC$x[which.max(BC$y)]
+lambda
+
+BC.Y = (Transform2$Y^lambda - 1)/lambda
+BC.data = data.frame(Y = BC.Y, X1 = Transform2$X)
+
+par(mfrow = c(1,2))
+BC.model = lm(Y ~ X1, data = BC.data)
+plot(BC.data$X1, BC.data$Y)
+```
+
+```{r}
+#Shapiro Wilks
+t.ei = BC.model$residuals
+t.SWtest = shapiro.test(t.ei)
+t.SWtest
+```
+We fail to reject the null and conclude that the errors are normal.
+
+```{r}
+#FK test
+BC.data$t.ei = BC.model$residuals
+new.Group = rep("Lower",nrow(BC.data)) #Creates a vector that repeats "Lower" n times
+new.Group[BC.data$Y > median(BC.data$Y)] = "Upper" #Changing the appropriate values to "Upper"
+new.Group = as.factor(new.Group) #Changes it to a factor, which R recognizes as a grouping variable.
+BC.data$new.Group = new.Group
+new.FKtest= fligner.test(BC.data$t.ei, BC.data$new.Group)
+new.FKtest
+```
+We fail to reject the null and conclude errors have constant variance.
+
+4. Transformed and Outliers Removed Dataset
+
+```{r}
+#Outlier removal of transformed dataset
+r.data <- BC.data[-CO.rij,]
+r.model <- lm(Y~X1,r.data)
+```
+```{r}
+#Shapiro Wilks
+r.ei = new.model$residuals
+r.SWtest = shapiro.test(r.ei)
+r.SWtest
+```
+```{r}
+#FK test
+r.data$r.ei = r.model$residuals
+new.Group = rep("Lower",nrow(r.data)) #Creates a vector that repeats "Lower" n times
+new.Group[r.data$Y > median(r.data$Y)] = "Upper" #Changing the appropriate values to "Upper"
+new.Group = as.factor(new.Group) #Changes it to a factor, which R recognizes as a grouping variable.
+r.data$new.Group = new.Group
+r.FKtest= fligner.test(r.data$r.ei, r.data$new.Group)
+r.FKtest
+```
+
+```{r}
+#regression line
+the.model
+
+ggplot(Transform2,aes(X,Y)) + geom_smooth(method='lm',se = FALSE)+geom_point(shape = 19) + ggtitle("Number of hospital beds vs. length of stay for a patient") + xlab("Number of hospital beds") + ylab("Length of stay for a patient in days")
+```
+\clearpage
+
+\hrulefill
+
+\begin{center} Appendix: R Script \end{center}
+
+```{r, ref.label=knitr::all_labels()[knitr::all_labels() != "setup"], echo=TRUE, eval=FALSE}
+```
